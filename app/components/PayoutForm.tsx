@@ -1,15 +1,20 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useWallet } from '@/app/context/WalletContext';
 import { TransferResponseModal } from './TransferResponseModal';
 import { TransferRecipient, TransferResponse } from '@/lib/types/transfer';
+import { sendBatchGaslessTransfer } from '@/lib/circle-wallet';
+import { parseUnits } from 'viem';
 
 const MAX_ROWS = 100;
 
 // Ethereum address validation regex
 const ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
+// USDC contract address on Base Sepolia testnet
+const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+
 export const PayoutForm = () => {
-  const { activeToken, refreshBalance, evmAddress } = useWallet();
+  const { activeToken, refreshBalance, evmAddress, mscaWallet } = useWallet();
   const [payoutRows, setPayoutRows] = useState<TransferRecipient[]>([
     { recipientId: '', amount: '' },
   ]);
@@ -18,7 +23,6 @@ export const PayoutForm = () => {
   const [showResults, setShowResults] = useState(false);
   const [transferResponse, setTransferResponse] =
     useState<TransferResponse | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validateAddresses = (rows: TransferRecipient[]) => {
     const invalidAddresses = rows
@@ -63,51 +67,6 @@ export const PayoutForm = () => {
     }
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const text = e.target?.result as string;
-        const rows = text
-          .split('\n')
-          .map((row) => row.trim())
-          .filter((row) => row);
-
-        // Skip header row if it exists
-        const dataRows = rows[0].includes('recipientId') ? rows.slice(1) : rows;
-
-        if (dataRows.length > MAX_ROWS) {
-          setError(
-            `CSV contains too many rows. Maximum allowed is ${MAX_ROWS}`
-          );
-          return;
-        }
-
-        const parsedRows = dataRows.map((row) => {
-          const [recipientId, amount] = row
-            .split(',')
-            .map((cell) => cell.trim());
-          return { recipientId, amount };
-        });
-
-        if (!validateAddresses(parsedRows)) {
-          return;
-        }
-
-        setPayoutRows(parsedRows);
-        setError(null);
-      } catch (err) {
-        console.error('Error parsing CSV:', err);
-        setError(
-          'Error parsing CSV file. Please ensure it has the correct format: address,amount'
-        );
-      }
-    };
-    reader.readAsText(file);
-  };
 
   const handleConfirm = async () => {
     if (isSubmitting) return;
@@ -120,36 +79,43 @@ export const PayoutForm = () => {
         throw new Error('No wallet connected');
       }
 
+      if (!mscaWallet?.bundlerClient) {
+        throw new Error('Wallet not initialized. Please refresh the page.');
+      }
+
       if (!validateAddresses(payoutRows)) {
         setIsSubmitting(false);
         return;
       }
 
-      const response = await fetch(`/api/account/transfer`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // Convert recipients to the format needed for batch transfer
+      const recipients = payoutRows.map((row) => ({
+        address: row.recipientId,
+        amount: parseUnits(row.amount, 6), // USDC has 6 decimals
+      }));
+
+      console.log('Sending batch transfer:', recipients);
+
+      // Send batch gasless transfer using Circle SDK
+      const txHash = await sendBatchGaslessTransfer(
+        mscaWallet.bundlerClient,
+        recipients,
+        USDC_ADDRESS
+      );
+
+      console.log('Batch transfer successful! TX Hash:', txHash);
+
+      const transferResponse: TransferResponse = {
+        result: {
+          success: true,
+          message: `Transfer completed! Transaction hash: ${txHash}`,
         },
-        body: JSON.stringify({
-          token: activeToken,
-          recipients: payoutRows,
-        }),
-      });
-
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Transfer failed');
-      }
-
-      const transferResponse: TransferResponse = await response.json();
+      };
 
       setTransferResponse(transferResponse);
       setShowResults(true);
       refreshBalance(activeToken);
-
-      if (transferResponse.result.success) {
-        setPayoutRows([{ recipientId: '', amount: '' }]);
-      }
+      setPayoutRows([{ recipientId: '', amount: '' }]);
     } catch (error) {
       console.error('Transfer error:', error);
       setError(
@@ -163,33 +129,18 @@ export const PayoutForm = () => {
   return (
     <div className="w-full p-4">
       <div className="flex flex-col items-end">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2 w-full max-w-[800px]">
-          <h2 className="text-lg font-semibold">Payout Recipients</h2>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isSubmitting}
-              className="font-bold bg-[#0052ff] text-white rounded-[30px] border-none outline-none cursor-pointer px-4 py-1.5 text-xs sm:text-sm w-fit max-w-[120px] sm:max-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Upload CSV
-            </button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              accept=".csv"
-              className="hidden"
-              disabled={isSubmitting}
-            />
-            <button
-              onClick={addRow}
-              disabled={isSubmitting}
-              className="font-bold bg-[#0052ff] text-white rounded-[30px] border-none outline-none cursor-pointer px-4 py-1.5 text-xs sm:text-sm w-fit max-w-[120px] sm:max-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Add Row
-            </button>
-          </div>
-        </div>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2 w-full max-w-[800px]">
+              <h2 className="text-lg font-semibold">Payout Recipients</h2>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <button
+                  onClick={addRow}
+                  disabled={isSubmitting}
+                  className="font-bold bg-[#0052ff] text-white rounded-[30px] border-none outline-none cursor-pointer px-4 py-1.5 text-xs sm:text-sm w-fit max-w-[120px] sm:max-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Add Row
+                </button>
+              </div>
+            </div>
 
         {error && (
           <div className="mb-4 p-2 bg-red-100 text-red-700 rounded w-full max-w-[800px]">

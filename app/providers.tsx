@@ -3,7 +3,6 @@
 import { createConfig, http, WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { coinbaseWallet } from '@wagmi/connectors';
-import { SessionProvider } from 'next-auth/react';
 import { WalletProvider } from './context/WalletContext';
 import { base, baseSepolia } from 'wagmi/chains';
 
@@ -22,9 +21,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <SessionProvider>
-          <WalletProvider>{children}</WalletProvider>
-        </SessionProvider>
+        <WalletProvider>{children}</WalletProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );

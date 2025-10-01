@@ -12,11 +12,11 @@ import { base, baseSepolia } from 'viem/chains';
 
 const clientKey = process.env.NEXT_PUBLIC_CIRCLE_CLIENT_KEY as string;
 const clientUrl = process.env.NEXT_PUBLIC_CIRCLE_CLIENT_URL as string;
-const useMainnet = process.env.NEXT_PUBLIC_USE_MAINNET;
+const useMainnet = process.env.NEXT_PUBLIC_USE_MAINNET === 'true';
 
-// Select chain based on environment
-const chain = useMainnet ? base : baseSepolia;
-const chainName = useMainnet ? 'base' : 'baseSepolia';
+// Select chain based on environment (force testnet for now)
+const chain = baseSepolia;
+const chainName = 'baseSepolia';
 
 
 
