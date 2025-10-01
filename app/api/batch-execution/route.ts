@@ -5,12 +5,12 @@ import { v4 as uuidv4 } from "uuid";
 
 const API_BASE = "https://api.circle.com/v1";
 
-export async function POST() {
+export const POST = async () => {
   try {
     const recipients = [
-      { address: "0x1111111111111111111111111111111111111111", amount: "5.0" },
-      { address: "0x2222222222222222222222222222222222222222", amount: "10.0" },
-      { address: "0x3333333333333333333333333333333333333333", amount: "2.5" },
+      { address: "0x28E133d46B872f4CF187AF9833f4f0E1d36814e7", amount: "1.0" },
+      { address: "0x87a617D3d7037d76BaF153E5aE4f67fBb92C5505", amount: "1.0" },
+      { address: "0xBAB81Af844687c57f4Bb8C9aa74F7E97281960dD", amount: "1.0" },
     ];
 
     // Define ERC-20 transfer ABI

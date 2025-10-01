@@ -7,11 +7,7 @@ export const Login = () => {
   const [mode, setMode] = useState<'register' | 'login'>('register');
   const { registerWallet, loginWallet } = useWallet();
 
-  // Check if environment variables are set
-  const hasCircleConfig = 
-    typeof window !== 'undefined' && 
-    process.env.NEXT_PUBLIC_CIRCLE_CLIENT_KEY && 
-    process.env.NEXT_PUBLIC_CIRCLE_CLIENT_URL;
+ 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
