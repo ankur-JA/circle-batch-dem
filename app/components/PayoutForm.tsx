@@ -10,8 +10,8 @@ const MAX_ROWS = 100;
 // Ethereum address validation regex
 const ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
-// USDC contract address on Base Sepolia testnet
-const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+// USDC contract address from environment
+const USDC_ADDRESS = process.env.NEXT_PUBLIC_USDC_CONTRACT_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
 
 export const PayoutForm = () => {
   const { activeToken, refreshBalance, evmAddress, mscaWallet } = useWallet();

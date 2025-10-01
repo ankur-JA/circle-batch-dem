@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { createPublicClient, http, formatUnits } from 'viem';
 import { baseSepolia } from 'viem/chains';
 
-// USDC contract address on Base Sepolia
-const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+// USDC contract address from environment
+const USDC_ADDRESS = process.env.NEXT_PUBLIC_USDC_CONTRACT_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
 
 // ERC-20 ABI for balanceOf
 const ERC20_ABI = [
@@ -43,7 +43,7 @@ export const WalletInfo = () => {
         });
         
         // Format USDC (6 decimals)
-        const formattedBalance = formatUnits(balanceResult, 6);
+        const formattedBalance = formatUnits(balanceResult as bigint, 6);
         setBalance(formattedBalance);
       } else if (activeToken === 'ETH') {
         const balanceResult = await client.getBalance({
